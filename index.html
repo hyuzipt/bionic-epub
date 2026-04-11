@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bionic EPUB Converter</title>
+<link rel="icon" href="data:image/svg+xml,<svg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'><rect x='10' y='8' width='36' height='46' rx='4' fill='%231a1a1a' stroke='%23e8e4dc' stroke-width='1.5'/><rect x='10' y='8' width='6' height='46' rx='2' fill='%232e2e2e' stroke='%23e8e4dc' stroke-width='1.5'/><rect x='22' y='20' width='10' height='3' rx='1' fill='%23e8e4dc'/><rect x='33' y='20' width='9' height='3' rx='1' fill='%23555'/><rect x='22' y='27' width='7' height='3' rx='1' fill='%23e8e4dc'/><rect x='30' y='27' width='12' height='3' rx='1' fill='%23555'/><rect x='22' y='34' width='12' height='3' rx='1' fill='%23e8e4dc'/><rect x='35' y='34' width='7' height='3' rx='1' fill='%23555'/><rect x='22' y='41' width='8' height='3' rx='1' fill='%23e8e4dc'/><rect x='31' y='41' width='10' height='3' rx='1' fill='%23555'/></svg>" type="image/svg+xml" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap');
+
+  :root {
+    --bg: #0e0e0e;
+    --surface: #181818;
+    --border: #2a2a2a;
+    --text: #e8e4dc;
+    --muted: #777;
+    --hint: #444;
+    --accent: #e8e4dc;
+    --success: #6fcf97;
+    --danger: #eb5757;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 4rem 1.5rem;
+  }
+
+  main { width: 100%; max-width: 620px; }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 36px;
+    font-weight: 600;
+    letter-spacing: -1px;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin-bottom: 2.5rem;
+  }
+
+  .description {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.8;
+    margin-bottom: 2.5rem;
+    border-left: 2px solid var(--border);
+    padding-left: 14px;
+  }
+
+  .description b { color: var(--text); font-weight: 500; }
+
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--hint); background: var(--surface); }
+
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .upload-icon { font-size: 28px; margin-bottom: 10px; color: var(--muted); }
+
+  .upload-label { font-size: 13px; color: var(--muted); }
+  .upload-label span { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+
+  .settings {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 1.5rem;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .settings label { display: flex; align-items: center; gap: 10px; }
+
+  input[type=range] {
+    appearance: none;
+    width: 100px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px; height: 14px;
+    background: var(--text);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .val { color: var(--text); font-weight: 500; min-width: 32px; }
+
+  .progress-bar {
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    display: none;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--text);
+    border-radius: 1px;
+    width: 0%;
+    transition: width 0.15s ease;
+  }
+
+  #status {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+    min-height: 18px;
+    margin-bottom: 1.5rem;
+  }
+
+  #status .ok { color: var(--success); }
+  #status .err { color: var(--danger); }
+  #status .hi { color: var(--text); }
+
+  #download-btn {
+    display: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 11px 22px;
+    border: 1.5px solid #444;
+    border-radius: 8px;
+    background: var(--text);
+    color: var(--bg);
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: opacity 0.15s;
+    margin-bottom: 2rem;
+  }
+
+  #download-btn:hover { opacity: 0.85; }
+
+  .section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--hint);
+    margin-bottom: 8px;
+  }
+
+  .example-box {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    line-height: 1.9;
+    color: var(--text);
+    background: var(--surface);
+    margin-bottom: 2.5rem;
+  }
+
+  .example-box p + p { margin-top: 0.9em; }
+
+  .preview { display: none; }
+
+  .preview-box {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    line-height: 1.85;
+    color: var(--text);
+    background: var(--surface);
+  }
+</style>
+</head>
+<body>
+<main>
+  <div style="display:flex; align-items:center; gap:14px; margin-bottom:4px;">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="42" height="42" style="flex-shrink:0;">
+      <rect x="10" y="8" width="36" height="46" rx="4" fill="#1a1a1a" stroke="#e8e4dc" stroke-width="1.5"/>
+      <rect x="10" y="8" width="6" height="46" rx="2" fill="#2e2e2e" stroke="#e8e4dc" stroke-width="1.5"/>
+      <rect x="22" y="20" width="10" height="3" rx="1" fill="#e8e4dc"/>
+      <rect x="33" y="20" width="9" height="3" rx="1" fill="#555"/>
+      <rect x="22" y="27" width="7" height="3" rx="1" fill="#e8e4dc"/>
+      <rect x="30" y="27" width="12" height="3" rx="1" fill="#555"/>
+      <rect x="22" y="34" width="12" height="3" rx="1" fill="#e8e4dc"/>
+      <rect x="35" y="34" width="7" height="3" rx="1" fill="#555"/>
+      <rect x="22" y="41" width="8" height="3" rx="1" fill="#e8e4dc"/>
+      <rect x="31" y="41" width="10" height="3" rx="1" fill="#555"/>
+    </svg>
+    <h1>bionic reader</h1>
+  </div>
+  <p class="subtitle">epub → bionic epub</p>
+
+  <p class="description">
+    Applies <b>bionic reading</b> to your EPUB by bolding the fixation point of each word.
+  </p>
+
+  <div class="settings">
+    <label>
+      fixation strength
+      <input type="range" id="strength" min="20" max="60" value="40" step="5" />
+      <span class="val" id="strength-val">40%</span>
+    </label>
+  </div>
+
+  <p class="section-label">live preview</p>
+  <div class="example-box" id="example-box"></div>
+
+  <div class="upload-zone" id="drop-zone">
+    <input type="file" id="file-input" accept=".epub" />
+    <div class="upload-icon">↑</div>
+    <p class="upload-label"><span>Choose an EPUB file</span> or drag it here</p>
+  </div>
+
+  <div class="progress-bar" id="progress-bar">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+
+  <div id="status"></div>
+
+  <button id="download-btn">↓ download bionic epub</button>
+
+  <div class="preview" id="preview-section">
+    <p class="section-label">from your epub</p>
+    <div class="preview-box" id="preview-box"></div>
+  </div>
+</main>
+
+<footer style="text-align:center; padding: 2rem 0 2.5rem; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #444; letter-spacing: 0.05em;">
+  made by <a href="https://anilist.co/user/Hyuzi" target="_blank" rel="noopener" style="color: #666; text-decoration: underline; text-underline-offset: 3px; transition: color 0.15s;" onmouseover="this.style.color='#e8e4dc'" onmouseout="this.style.color='#666'">@Hyuzi</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const fileInput = document.getElementById('file-input');
+const dropZone = document.getElementById('drop-zone');
+const status = document.getElementById('status');
+const dlBtn = document.getElementById('download-btn');
+const progressBar = document.getElementById('progress-bar');
+const progressFill = document.getElementById('progress-fill');
+const strengthSlider = document.getElementById('strength');
+const strengthVal = document.getElementById('strength-val');
+const previewSection = document.getElementById('preview-section');
+const previewBox = document.getElementById('preview-box');
+
+const exampleBox = document.getElementById('example-box');
+
+const EXAMPLE_PARAGRAPHS = [
+  "The morning air carried the scent of pine and distant rain as she stepped onto the narrow mountain path. Each footfall crunched against loose gravel, sending small stones skittering down the slope below.",
+  "She had read about this trail in a worn paperback she found at a secondhand bookshop three summers ago. The author described it as a place where the boundary between the world and something older grew thin enough to feel.",
+  "By midday the clouds had thickened into a low grey ceiling, and the temperature dropped sharply. She pulled her jacket tighter and kept walking, counting her breaths the way her father had taught her as a child."
+];
+
+function renderExample() {
+  const ratio = parseInt(strengthSlider.value) / 100;
+  exampleBox.innerHTML = EXAMPLE_PARAGRAPHS
+    .map(p => `<p>${applyBionicToText(p, ratio)}</p>`)
+    .join('');
+}
+
+
+
+strengthSlider.addEventListener('input', () => {
+  strengthVal.textContent = strengthSlider.value + '%';
+  renderExample();
+  updatePreview();
+});
+
+renderExample();
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.name.endsWith('.epub')) processFile(f);
+  else setStatus('Please drop a .epub file.', 'err');
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) processFile(fileInput.files[0]);
+});
+
+dlBtn.addEventListener('click', () => {
+  if (!resultBlob) return;
+  const url = URL.createObjectURL(resultBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = currentFile.name.replace('.epub', '-bionic.epub');
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+});
+
+function setStatus(msg, cls) {
+  status.innerHTML = `<span class="${cls || ''}">${msg}</span>`;
+}
+
+function setProgress(pct) {
+  progressBar.style.display = 'block';
+  progressFill.style.width = pct + '%';
+}
+
+function bionicWord(word, ratio) {
+  if (word.length <= 1) return word;
+  const n = Math.max(1, Math.ceil(word.length * ratio));
+  return `<b>${word.slice(0, n)}</b>${word.slice(n)}`;
+}
+
+function applyBionicToText(text, ratio) {
+  return text.replace(/\S+/g, match => {
+    if (!/[a-zA-Z\u3040-\u9fff]/.test(match)) return match;
+    // Split off leading/trailing punctuation
+    const m = match.match(/^([^a-zA-Z0-9\u3040-\u9fff]*)(.+?)([^a-zA-Z0-9\u3040-\u9fff]*)$/);
+    if (!m) return match;
+    return m[1] + bionicWord(m[2], ratio) + m[3];
+  });
+}
+
+const SKIP_TAGS = new Set(['script','style','code','pre','kbd','var','samp','math','svg','ruby','rt','rp','head']);
+
+function processTextNodes(node, ratio) {
+  if (!node) return;
+  if (node.nodeType === Node.ELEMENT_NODE && SKIP_TAGS.has(node.tagName.toLowerCase())) return;
+  const children = Array.from(node.childNodes);
+  for (const child of children) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      const text = child.textContent;
+      if (!text.trim()) continue;
+      const bio = applyBionicToText(text, ratio);
+      if (bio !== text) {
+        const span = node.ownerDocument.createElement('span');
+        span.innerHTML = bio;
+        node.replaceChild(span, child);
+      }
+    } else if (child.nodeType === Node.ELEMENT_NODE) {
+      processTextNodes(child, ratio);
+    }
+  }
+}
+
+function processHtmlContent(html, ratio, isXhtml) {
+  const parser = new DOMParser();
+  const type = isXhtml ? 'application/xhtml+xml' : 'text/html';
+  let doc = parser.parseFromString(html, type);
+  if (doc.querySelector('parsererror')) {
+    doc = parser.parseFromString(html, 'text/html');
+  }
+  processTextNodes(doc.body || doc.documentElement, ratio);
+  if (isXhtml) {
+    let out = new XMLSerializer().serializeToString(doc);
+    if (!out.startsWith('<?xml')) out = '<?xml version="1.0" encoding="utf-8"?>\n' + out;
+    return out;
+  }
+  return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+}
+
+function updatePreview() {
+  if (!previewSample) return;
+  const ratio = parseInt(strengthSlider.value) / 100;
+  previewBox.innerHTML = applyBionicToText(previewSample, ratio);
+}
+
+async function processFile(file) {
+  currentFile = file;
+  resultBlob = null;
+  dlBtn.style.display = 'none';
+  previewSection.style.display = 'none';
+  previewSample = '';
+  setProgress(5);
+  setStatus(`Reading <span class="hi">${file.name}</span>...`);
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(arrayBuffer);
+
+    const htmlFiles = [];
+    zip.forEach((path, entry) => {
+      if (!entry.dir && /\.(html|xhtml|htm)$/i.test(path)) {
+        htmlFiles.push({ path, entry });
+      }
+    });
+
+    setStatus(`Found <span class="hi">${htmlFiles.length}</span> content file${htmlFiles.length !== 1 ? 's' : ''}. Applying bionic filter...`);
+
+    const ratio = parseInt(strengthSlider.value) / 100;
+    let processed = 0;
+    let sampleCaptured = false;
+
+    for (const { path, entry } of htmlFiles) {
+      const content = await entry.async('string');
+      const isXhtml = /\.xhtml$/i.test(path);
+      const newContent = processHtmlContent(content, ratio, isXhtml);
+      zip.file(path, newContent);
+
+      if (!sampleCaptured) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(content, 'text/html');
+        let sample = '';
+        const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          const t = node.textContent.trim();
+          if (t.length > 20) sample += t + ' ';
+          if (sample.length > 200) break;
+        }
+        previewSample = sample.slice(0, 200).trim();
+        sampleCaptured = true;
+      }
+
+      processed++;
+      setProgress(5 + Math.round((processed / htmlFiles.length) * 85));
+    }
+
+    setProgress(95);
+    setStatus('Repacking EPUB...');
+
+    const blob = await zip.generateAsync({
+      type: 'blob',
+      mimeType: 'application/epub+zip',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
+
+    resultBlob = blob;
+    setProgress(100);
+
+    const kb = Math.round(blob.size / 1024);
+    setStatus(`<span class="ok">Done!</span> &nbsp;${htmlFiles.length} file${htmlFiles.length !== 1 ? 's' : ''} processed · ${kb} KB output`);
+    dlBtn.style.display = 'inline-block';
+
+    if (previewSample) {
+      previewSection.style.display = 'block';
+      updatePreview();
+    }
+
+    setTimeout(() => { progressBar.style.display = 'none'; }, 800);
+  } catch (err) {
+    setStatus(`<span class="err">Error: ${err.message}</span>`);
+    progressBar.style.display = 'none';
+    console.error(err);
+  }
+}
+</script>
+</body>
+</html>
